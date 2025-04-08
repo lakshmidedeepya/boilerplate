@@ -17,7 +17,7 @@ def conjugate_descent(
     n = len(x)
 
     for k in range(max_iter):
-        if np.linalg.norm(grad) < tol:
+        if np.linalg.norm(grad) <= tol:
             break
         phi = lambda alpha: f(x + alpha * d)
         d_phi = lambda alpha: np.dot(d_f(x + alpha * d), d)
@@ -29,7 +29,7 @@ def conjugate_descent(
 
 
         if k >= n - 1:
-            x=x_new
+            
             k=0
             d = -grad
         else:
@@ -59,7 +59,7 @@ def sr1(
 
     for _ in range(max_iter):
         grad = d_f(x)
-        if np.linalg.norm(grad) < tol:
+        if np.linalg.norm(grad) <= tol:
             break
 
         d = -np.linalg.solve(B, grad)
@@ -95,11 +95,11 @@ def dfp(
     n = len(x)
     H = np.eye(n)
     tol = 1e-6
-    max_iter = 1000
+    max_iter = 5000
 
     for _ in range(max_iter):
         grad = d_f(x)
-        if np.linalg.norm(grad) < tol:
+        if np.linalg.norm(grad) <= tol:
             break
 
         d = -H @ grad
@@ -115,11 +115,10 @@ def dfp(
         y = d_f(x_new) - grad
 
         Hy = H @ y
+        yH = y @ H
         denom = np.dot(y, s)
-
-        if abs(denom) > tol * np.linalg.norm(s) * np.linalg.norm(y):
-            H += np.outer(s, s) / denom - np.outer(Hy, Hy) / (np.dot(y, Hy) + 1e-12)
-
+        H += (np.outer(s, s) / (denom+ 1e-12)) - (np.outer(Hy, yH) / (np.dot(y, Hy) + 1e-12))
+       
         x = x_new
 
     return x
@@ -138,7 +137,7 @@ def bfgs(
 
     for _ in range(max_iter):
         grad = d_f(x)
-        if np.linalg.norm(grad) < tol:
+        if np.linalg.norm(grad) <= tol:
             break
 
         d = -H @ grad
