@@ -17,9 +17,7 @@ def conjugate_descent(
     tol = 1e-6
     max_iter = 1000
     n = len(x)
-    f_vals = []
-    x_history = []
-    grad_norms = []
+    f_vals, x_history, grad_norms = [], [], []
     for k in range(max_iter):
         f_vals.append(f(x))
         x_history.append(x.copy())
@@ -36,9 +34,7 @@ def conjugate_descent(
         grad = d_f(x_new)
 
 
-        if k >= n - 1:
-            
-            k=0
+        if (k + 1) % n == 0:
             d = -grad
         else:
             if approach == "Fletcher-Reeves":
@@ -109,7 +105,7 @@ def dfp(
     n = len(x)
     H = np.eye(n)
     tol = 1e-6
-    max_iter = 5000
+    max_iter = 1000
     f_vals = []
     x_history = []
     grad_norms = []
@@ -136,7 +132,8 @@ def dfp(
         Hy = H @ y
         yH = y @ H
         denom = np.dot(y, s)
-        H += (np.outer(s, s) / (denom+ 1e-12)) - (np.outer(Hy, yH) / (np.dot(y, Hy) + 1e-12))
+        if abs(denom) > 1e-12 and abs(np.dot(y, Hy)) > 1e-12:
+            H += (np.outer(s, s) / (denom+ 1e-12)) - (np.outer(Hy, yH) / (np.dot(y, Hy) + 1e-12))
        
         x = x_new
     plot_results(f, initial_point, "dfp", f_vals, grad_norms, x_history)
