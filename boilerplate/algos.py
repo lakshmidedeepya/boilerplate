@@ -59,39 +59,66 @@ def sr1(
     x = initial_point.copy()
     n = len(x)
     B = np.eye(n)
-    tol = 1e-6
+    tol = 1e-8
     max_iter = 1000
     f_vals = []
     x_history = []
     grad_norms = []
-    for _ in range(max_iter):
-        f_vals.append(f(x))
+    for k in range(max_iter):
+        try:
+            current_f = f(x)
+            grad = d_f(x)
+        except Exception:
+            break
+
+        f_vals.append(current_f)
+        
         x_history.append(x.copy())
-        grad = d_f(x)
         grad_norms.append(np.linalg.norm(grad))
         if np.linalg.norm(grad) <= tol:
             break
 
-        d = -np.linalg.solve(B, grad)
+        try:
+            d = -np.linalg.solve(B, grad)
+        except np.linalg.LinAlgError:
+            d = -grad.copy()
 
-        phi = lambda a: f(x + a * d)
-        d_phi = lambda a: np.dot(d_f(x + a * d), d)
-        if d_phi(0) >= 0:
-            d = -grad
+       
+        def phi(alpha):
+            try:
+                val = x + alpha * d
+                if np.any(np.isnan(val)) or np.any(np.isinf(val)):
+                    return np.inf
+                return f(val)
+            except Exception:
+                return np.inf
+
+        def d_phi(alpha):
+            try:
+                val = x + alpha * d
+                if np.any(np.isnan(val)) or np.any(np.isinf(val)):
+                    return np.inf
+                return np.dot(d_f(val), d)
+            except Exception:
+                return np.inf
         alpha = bisection_line_search(phi, d_phi, 0, 1)
 
         s = alpha * d
         x_new = x + s
-        y = d_f(x_new) - grad
+        try:
+            y = d_f(x_new) - grad
+            By= B @ y
+            s_minus_By=s-By
+        except Exception:
+            break
 
-        Bs = B @ s
-        y_minus_Bs = y - Bs
-        denom = np.dot(y_minus_Bs, s)
+        denom = np.dot(s_minus_By, y)
 
-        if abs(denom) > tol * np.linalg.norm(s) * np.linalg.norm(y_minus_Bs):
-            B += np.outer(y_minus_Bs, y_minus_Bs) / denom
+        if denom!=0 and abs(denom) >= tol * np.linalg.norm(s) * np.linalg.norm(s_minus_By):
+            B += np.outer(s_minus_By, s_minus_By) / denom
 
         x = x_new
+        
     plot_results(f, initial_point, "sr1", f_vals, grad_norms, x_history)
     return x
 
@@ -105,7 +132,7 @@ def dfp(
     n = len(x)
     H = np.eye(n)
     tol = 1e-6
-    max_iter = 1000
+    max_iter = 9000
     f_vals = []
     x_history = []
     grad_norms = []
