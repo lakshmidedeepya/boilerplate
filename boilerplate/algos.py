@@ -28,8 +28,8 @@ def conjugate_descent(
         phi = lambda alpha: f(x + alpha * d)
         d_phi = lambda alpha: np.dot(d_f(x + alpha * d), d)
 
-        alpha = bisection_line_search(phi, d_phi, 0, 1)
-        x_new = x + alpha * d
+        alpha = bisection_line_search(phi, d_phi)
+        x_new = x + (alpha * d)
         prev_grad = grad.copy()
         grad = d_f(x_new)
 
@@ -67,7 +67,10 @@ def sr1(
     for k in range(max_iter):
         try:
             current_f = f(x)
+            current_f=np.clip(current_f,-1e10, 1e10)
             grad = d_f(x)
+            # Prevent overflow by clipping extreme values
+            grad = np.clip(grad, -1e10, 1e10)
         except Exception:
             break
 
@@ -77,45 +80,32 @@ def sr1(
         grad_norms.append(np.linalg.norm(grad))
         if np.linalg.norm(grad) <= tol:
             break
-
-        try:
-            d = -np.linalg.solve(B, grad)
-        except np.linalg.LinAlgError:
-            d = -grad.copy()
-
-       
-        def phi(alpha):
-            try:
-                val = x + alpha * d
-                if np.any(np.isnan(val)) or np.any(np.isinf(val)):
-                    return np.inf
-                return f(val)
-            except Exception:
-                return np.inf
-
-        def d_phi(alpha):
-            try:
-                val = x + alpha * d
-                if np.any(np.isnan(val)) or np.any(np.isinf(val)):
-                    return np.inf
-                return np.dot(d_f(val), d)
-            except Exception:
-                return np.inf
-        alpha = bisection_line_search(phi, d_phi, 0, 1)
+        
+        d = -B @ grad
+        phi = lambda alpha: f(x + alpha * d)
+        d_phi = lambda alpha: np.dot(d_f(x + alpha * d), d)
+        alpha = bisection_line_search(phi, d_phi)
 
         s = alpha * d
         x_new = x + s
+        
         try:
+            
             y = d_f(x_new) - grad
+            
             By= B @ y
+           
             s_minus_By=s-By
+            s_minus_By = np.clip(s_minus_By, -1e10, 1e10)
+            
         except Exception:
             break
 
-        denom = np.dot(s_minus_By, y)
+        denom = s_minus_By @ y
 
         if denom!=0 and abs(denom) >= tol * np.linalg.norm(s) * np.linalg.norm(s_minus_By):
             B += np.outer(s_minus_By, s_minus_By) / denom
+            B = np.clip(B, -1e10, 1e10)
 
         x = x_new
         
@@ -150,7 +140,7 @@ def dfp(
         d_phi = lambda a: np.dot(d_f(x + a * d), d)
         if d_phi(0) >= 0:
             d = -grad
-        alpha = bisection_line_search(phi, d_phi, 0, 1)
+        alpha = bisection_line_search(phi, d_phi)
 
         s = alpha * d
         x_new = x + s
@@ -194,7 +184,7 @@ def bfgs(
         d_phi = lambda a: np.dot(d_f(x + a * d), d)
         if d_phi(0) >= 0:
             d = -grad
-        alpha = bisection_line_search(phi, d_phi, 0, 1)
+        alpha = bisection_line_search(phi, d_phi)
 
         s = alpha * d
         x_new = x + s
@@ -213,16 +203,14 @@ def bfgs(
 def bisection_line_search(
     phi: Callable[[float], float],
     d_phi: Callable[[float], float],
-    a: float,
-    b: float,
     tol: float = 1e-6,
     max_iter: int = 100
 ) -> float:
     c1 = 0.001
     c2 = 0.1
-    alpha = a
+    alpha = 0
     beta = 1e6
-    t = b
+    t = 1
 
     f_0 = phi(0)
     dphi_0 = d_phi(0)
